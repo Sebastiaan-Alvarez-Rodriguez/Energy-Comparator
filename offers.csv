@@ -1,3 +1,6 @@
-name,type,gasconstant,gasconstant_unit,gasvariable,gasvariable_unit,powerconstant,powerconstant_unit,powervariable_low,powervariable_high,powervariable_low_return,powervariable_high_return,bonus,
-GreenChoice NL windstroom 1 jaar vast,vast,,,,,123.07,year,0.31974,0.374,0.08,0.08,0,
-Gewoon EU groen stroom 1 jaar vast,vast,,,,,95.59,year,0.28732,0.30123,0.07,0.07,0,
+name,type,gasconstant,gasconstant_unit,gasvariable,powerconstant,powerconstant_unit,powervariable_low,powervariable_high,powergen_low,powergen_high,bonus
+GreenChoice NL windstroom 1 jaar vast,vast,,,,10.2558333333,month,0.31974,0.374,0.08,0.08,0
+Gewoon EU groen stroom 1 jaar vast,vast,,,,95.59,year,0.28732,0.30123,0.07,0.07,0
+Oxxio 1 jaar,vast,71.87,year,1.20192,71.87,year,0.31179,0.31179,0.09,0.09,0
+Frank energie flex gas,flexible,84.00,year,1.14464,,,,,,,40
+Budget energie gas,flexible,71.88,year,1.17129,,,,,,,0
