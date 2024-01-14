@@ -22,7 +22,7 @@
         };
         src = ./.;
 
-        propagatedBuildInputs = [ buildPythonPackages.numpy buildPythonPackages.pandas ];
+        propagatedBuildInputs = [ buildPythonPackages.numpy buildPythonPackages.pandas buildPythonPackages.scipy ];
 
         # By default tests are executed, but we don't want to.
         dontUseSetuptoolsCheck = true;
@@ -33,7 +33,7 @@
       };
       packages.default = energy-comparator;
       devShells.default = pkgs.mkShell rec {
-        packages = [ buildPythonPackages.numpy buildPythonPackages.pandas ];
+        packages = [ buildPythonPackages.numpy buildPythonPackages.pandas buildPythonPackages.scipy ];
       };
     }
   );
