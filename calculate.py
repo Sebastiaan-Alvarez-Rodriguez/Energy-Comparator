@@ -105,11 +105,13 @@ def find_minimal_function(df, mean_vector, cov_matrix, saldering, outage, sample
 
     best_gas = max(gas_dict, key=lambda x: gas_dict[x][0]) # gets the key with most occurrences (=most optimal values)
     best_power = max(power_dict, key=lambda x: power_dict[x][0])
-    
     print('On average, the best contract is:')
     print(f'For gas: "{best_gas}" with a price of {gas_dict[best_gas][1]} euro per year, {gas_dict[best_gas][1]/12} euro per month (best in {gas_dict[best_gas][0]/samplesize *100}% of situations measured)')
     print(f'For power: "{best_power}" with a price of {power_dict[best_power][1]} euro per year, {power_dict[best_power][1]/12} euro per month (best in {power_dict[best_power][0]/samplesize *100}% of situations measured)')
-
+    print()
+    print('Case summary:') # TODO: normalize each dict-value list, and compare the normal equations.
+    print(gas_dict)
+    print(power_dict)
 
 def main():
     # Simple program to calculate normalized cost for power & gas grid connections.
