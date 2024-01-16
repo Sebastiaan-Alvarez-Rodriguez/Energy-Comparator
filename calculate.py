@@ -56,7 +56,22 @@ def verify(df):
     # TODO: check if expected column names are present
     # check whether any gas-setting is set without the other gas settings.
     # check whether any power-setting is set without the other power settings.
-    
+    required_csv_names = ['name','type','gasconstant','gasconstant_unit','gasvariable','powerconstant','powerconstant_unit','powervariable_low','powervariable_high','powergen_low','powergen_high','bonus']
+    ok = True
+    for name in required_csv_names:
+        if name not in df:
+            print(f'[Error] Missing column name "{name}" in csv header.')
+            ok = False
+    for idx, entry in df.iterrows():
+        gas_vars = entry.iloc[2:5]
+        if any(gas_vars) and not all(gas_vars):
+            print(f'[Error] Data entry {idx} is incorrect: Contains some, but not all of "gasconstant", "gasconstant_unit", "gasvariable".')
+            ok = False
+        power_vars = entry.iloc[5:11]
+        if any(power_vars) and not all(power_vars):
+            print(f'[Error] Data entry {idx} is incorrect: Contains some, but not all of "powerconstant", "powerconstant_unit", "powervariable_low", "powervariable_high", "powergen_low", "powergen_high".')
+            ok = False
+    return ok
 
 def best_offer(df, mean_vector, saldering, outage):
     '''
