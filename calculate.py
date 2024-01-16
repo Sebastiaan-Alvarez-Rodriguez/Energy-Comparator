@@ -11,36 +11,33 @@ def set_if_not_null(d, key, value):
     if value:
         d[key] = value
 
-def get_profile(path=None, profile_gas_mean=None, profile_gas_dev=None, profile_power_low_mean=None, profile_power_low_dev=None, profile_power_high_mean=None, profile_power_high_dev=None, profile_power_gen_low_mean=None, profile_power_gen_low_dev=None, profile_power_gen_high_mean=None, profile_power_gen_high_dev=None):
-
+def get_profile(path=None, profile_covariance_matrix=None, profile_gas=None, profile_power_low=None, profile_power_high=None, profile_power_gen_low=None, profile_power_gen_high=None):
     if path:
         with open(path, 'r') as f:
             profile = json.load(f)
     else:
         profile = {}
 
-    set_if_not_null(profile, 'gas_mean', profile_gas_mean)
-    set_if_not_null(profile, 'gas_dev', profile_gas_dev)
-    set_if_not_null(profile, 'power_low_mean', profile_power_low_mean)
-    set_if_not_null(profile, 'power_low_dev', profile_power_low_dev)
-    set_if_not_null(profile, 'power_high_mean', profile_power_high_mean)
-    set_if_not_null(profile, 'power_high_dev', profile_power_high_dev)
-    set_if_not_null(profile, 'power_gen_low_mean', profile_power_gen_low_mean)
-    set_if_not_null(profile, 'power_gen_low_dev', profile_power_gen_low_dev)
-    set_if_not_null(profile, 'power_gen_high_mean', profile_power_gen_high_mean)
-    set_if_not_null(profile, 'power_gen_high_dev', profile_power_gen_high_dev)
+    set_if_not_null(profile, 'gas', profile_gas)
+    set_if_not_null(profile, 'power_low', profile_power_low)
+    set_if_not_null(profile, 'power_high', profile_power_high)
+    set_if_not_null(profile, 'power_gen_low', profile_power_gen_low)
+    set_if_not_null(profile, 'power_gen_high', profile_power_gen_high)
     for name in ['gas', 'power_low', 'power_high', 'power_gen_low', 'power_gen_high']:
-        if f'{name}_mean' not in profile:
-            print(f'Key "{name}" mean not set, assuming {name}_mean = 0.0')
-            profile[f'{name}_mean'] = 0.0
-        if f'{name}_dev' not in profile:
-            print(f'Key "{name}" standard deviation not set.')
-            profile[f'{name}_dev'] = 0.0
+        if f'{name}' not in profile:
+            print(f'Key "{name}" not set, assuming {name} = 0.0')
+            profile[name] = 0.0
+    if profile_covariance_matrix:
+        profile['covariance_matrix'] = np.array(json.loads(profile_covariance_matrix))
+        if profile['covariance_matrix'].shape != (5,5,):
+            print(f'Found a non-conforming matrix shape. Must be 5 rows, 5 columns. Found {profile["covariance_matrix"].shape[0]} rows, {profile["covariance_matrix"].shape[1]} columns.')
+        print(f'The matrix:')
+        print(profile['covariance_matrix'])
     return profile
 
 
 def normalize(df):
-    # normalizes data points to year basis
+    # normalizes data units to year basis
     power_month_mask = df.powerconstant_unit == 'month'
     df['powerconstant'] = df.powerconstant * 12 * power_month_mask + df.powerconstant * (~power_month_mask)
     power_day_mask = df.powerconstant_unit == 'day'
@@ -54,9 +51,23 @@ def normalize(df):
     return df
 
 
-def best_offer(df, gas, power_low, power_high, power_gen_low, power_gen_high, saldering, outage):
-    # Calculates the best contract for power and gas. Considers both combined and separate contracts
+def verify(df):
+    # verifies integrity of df
+    # TODO: check if expected column names are present
+    # check whether any gas-setting is set without the other gas settings.
+    # check whether any power-setting is set without the other power settings.
+    
 
+def best_offer(df, mean_vector, saldering, outage):
+    '''
+    Calculates the best contract for power and gas. Considers both combined and separate contracts.
+    :param df Dataframe of contracts.
+    :param mean_vector Vector containing estimated gas, power_low, power_high, power_generation_low, power_generation_high.
+    :param saldering Percentage of power generated that can be subtracted from power usage, between 0 and 1.
+    :param outage Expected Percentage of reduction in generated power due to the net turning off the supply.
+    :return a (Pandas.Series, Pandas.Series) containing: the cheapest contract row for gas, cheapest contract for power.
+    '''
+    gas, power_low, power_high, power_gen_low, power_gen_high = mean_vector
     df['calc_gas'] = df.gasconstant + gas * df.gasvariable
     expected_low = power_low-(power_gen_low*saldering*outage)
     expected_high = power_high-(power_gen_high*saldering*outage)
@@ -68,12 +79,12 @@ def best_offer(df, gas, power_low, power_high, power_gen_low, power_gen_high, sa
 
     only_gas_mask = df.powerconstant.isna() & df.powervariable_low.isna() & df.powervariable_high.isna()
     only_power_mask = df.gasconstant.isna() & df.gasvariable.isna()
-    # combined
+    # combined contracts comparison
     combined_df = df[(~only_gas_mask) & (~only_power_mask)]
     min_combined_idx = combined_df.loc[combined_df.total.idxmin()]
     # print(f'combined: {min_combined_idx}')
 
-    # separate
+    # separate contracts comparisons
     only_gas_df = df[only_gas_mask]
     min_gas_idx = only_gas_df.loc[only_gas_df.total.idxmin()]
 
@@ -92,8 +103,8 @@ def find_minimal_function(df, mean_vector, cov_matrix, saldering, outage, sample
     gas_dict = {}
     power_dict = {}
     linear_func = functools.partial(best_offer, df, saldering=saldering, outage=outage)
-    inputs = np.random.multivariate_normal(mean_vector, np.diagflat(cov_matrix), samplesize)
-    outputs = [linear_func(*sample) for sample in inputs]
+    inputs = np.random.multivariate_normal(mean_vector, cov_matrix, samplesize)
+    outputs = [linear_func(sample) for sample in inputs]
 
     for gas, power in outputs:
         gas_dict.setdefault(gas['name'], []).append(gas.total)
@@ -106,61 +117,57 @@ def find_minimal_function(df, mean_vector, cov_matrix, saldering, outage, sample
     best_gas = max(gas_dict, key=lambda x: gas_dict[x][0]) # gets the key with most occurrences (=most optimal values)
     best_power = max(power_dict, key=lambda x: power_dict[x][0])
     print('On average, the best contract is:')
-    print(f'For gas: "{best_gas}" with a price of {gas_dict[best_gas][1]} euro per year, {gas_dict[best_gas][1]/12} euro per month (best in {gas_dict[best_gas][0]/samplesize *100}% of situations measured)')
-    print(f'For power: "{best_power}" with a price of {power_dict[best_power][1]} euro per year, {power_dict[best_power][1]/12} euro per month (best in {power_dict[best_power][0]/samplesize *100}% of situations measured)')
+    print(f'Gas: "{best_gas}" with price {gas_dict[best_gas][1]} euro/year, {gas_dict[best_gas][1]/12} euro/month (best in {gas_dict[best_gas][0]/samplesize *100}% of situations measured)')
+    print(f'Power: "{best_power}" with price {power_dict[best_power][1]} euro/year, {power_dict[best_power][1]/12} euro/month (best in {power_dict[best_power][0]/samplesize *100}% of situations measured)')
     print()
-    print('Case summary:') # TODO: normalize each dict-value list, and compare the normal equations.
-    print(gas_dict)
-    print(power_dict)
+    print('Case summary:')
+    print(f'''Gas:      {gas_dict[best_gas][1]}/yr ("{best_gas}")
+Power:    {power_dict[best_power][1]}/yr ("{best_power}")
+Combined: {gas_dict[best_gas][1] + power_dict[best_power][1]}/yr
+''')
+
 
 def main():
     # Simple program to calculate normalized cost for power & gas grid connections.
     parser = argparse.ArgumentParser()
     parser.add_argument('--offers', default=str(Path.cwd() / 'offers.csv'), help='Data file containing offers.')
     parser.add_argument('--profile', default=None, help='Data file containing usage and generation data.')
-    parser.add_argument('--profile-gas-mean', type=float, default=None, help='Average yearly gas consumption. Takes precedence over file-based data.')
-    parser.add_argument('--profile-gas-dev', type=float, default=None, help='Deviation for yearly gas consumption. Takes precedence over file-based data.')
-    parser.add_argument('--profile-power-low-mean', type=float, default=None, help='Average yearly power consumption (low tarif). Takes precedence over file-based data.')
-    parser.add_argument('--profile-power-low-dev', type=float, default=None, help='Deviation for yearly power consumption (low tarif). Takes precedence over file-based data.')
-    parser.add_argument('--profile-power-high-mean', type=float, default=None, help='Average yearly power consumption (high tarif). Takes precedence over file-based data.')
-    parser.add_argument('--profile-power-high-dev', type=float, default=None, help='Deviation for yearly power consumption (high tarif). Takes precedence over file-based data.')
-    parser.add_argument('--profile-power-gen-low-mean', type=float, default=None, help='Average yearly power generation (low tarif). Takes precedence over file-based data.')
-    parser.add_argument('--profile-power-gen-low-dev', type=float, default=None, help='Deviation for yearly power generation (low tarif). Takes precedence over file-based data.')
-    parser.add_argument('--profile-power-gen-high-mean', type=float, default=None, help='Average yearly power generation (high tarif). Takes precedence over file-based data.')
-    parser.add_argument('--profile-power-gen-high-dev', type=float, default=None, help='Deviation for yearly power generation (high tarif). Takes precedence over file-based data.')
+    parser.add_argument('--profile-covariance-matrix', default=None, help='Set the 5x5 covariance matrix. Relations to denote: gas, power-low, power-high, power-generation-low, power-generation-high. Of course, the diagonal entries are standard deviations and the non-diagonal entries provide pairwise covariance. should look like json: i.e. `[ [60,0,0,0,0], [0,60,0,0,0], [0,0,60,0,0], [0,0,0,60,0], [0,0,0,0,60] ]`. Use only if you know what you are doing.')
+    parser.add_argument('--profile-gas', type=float, default=None, help='Average yearly gas consumption. Takes precedence over file-based data.')
+    parser.add_argument('--profile-power-low', type=float, default=None, help='Average yearly power consumption (low tarif). Takes precedence over file-based data.')
+    parser.add_argument('--profile-power-high', type=float, default=None, help='Average yearly power consumption (high tarif). Takes precedence over file-based data.')
+    parser.add_argument('--profile-power-gen-low', type=float, default=None, help='Average yearly power generation (low tarif). Takes precedence over file-based data.')
+    parser.add_argument('--profile-power-gen-high', type=float, default=None, help='Average yearly power generation (high tarif). Takes precedence over file-based data.')
     parser.add_argument('--saldering', type=float, default=1.0, help='Saldering assumption, determines how much generated energy compensates for consumed energy (factor between 0 and 1).')
     parser.add_argument('--outage', type=float, default=1.0, help='Outage assumption, describes when the sun shines but the net is satisfied, leading to no power delivery on the net (factor between 0 and 1).')
     parser.add_argument('--extra-costs', type=float, default=0.0, help='Extra: Other costs, can be negative to denote a bonus.')
-    parser.add_argument('--test', action='store_true', help='Sets test mode')
     args = parser.parse_args()
 
-    profile = get_profile(args.profile, \
-                          args.profile_gas_mean, args.profile_gas_dev, \
-                          args.profile_power_low_mean, args.profile_power_low_dev, \
-                          args.profile_power_high_mean, args.profile_power_high_dev, \
-                          args.profile_power_gen_low_mean, args.profile_power_gen_low_dev, \
-                          args.profile_power_gen_high_mean, args.profile_power_gen_high_dev)
-    df = pd.read_csv(args.offers)
+    profile = get_profile(args.profile, args.profile_covariance_matrix, args.profile_gas, args.profile_power_low, args.profile_power_high, args.profile_power_gen_low, args.profile_power_gen_high)
+    df = pd.read_csv(args.offers, comment='#')
     print(df.to_string())
     df = normalize(df)
+    if not verify(df):
+        return
+    # mean_vector contains the usage/generation estimations.
+    mean_vector = np.array([profile['gas'], profile['power_low'], profile['power_high'], profile['power_gen_low'], profile['power_gen_high']])
 
-    mean_vector = [args.profile_gas_mean, args.profile_power_low_mean, args.profile_power_high_mean, args.profile_power_gen_low_mean, args.profile_power_gen_high_mean]
-    std_vector = [args.profile_gas_dev, args.profile_power_low_dev, args.profile_power_high_dev, args.profile_power_gen_low_dev, args.profile_power_gen_high_dev]
-
-    if all(v == 0.0 for v in std_vector):
-        gas, power = best_offer(df, profile['gas_mean'], profile['power_low_mean'], profile['power_high_mean'], profile['power_gen_low_mean'], profile['power_gen_high_mean'], args.saldering, args.outage)
+    if not 'covariance_matrix' in profile: # No statistics -> just simple computing
+        gas, power = best_offer(df, mean_vector, args.saldering, args.outage)
         year_price = gas.total+power.total + args.extra_costs
-        print('No variability detected.')
+        print('No covariance matrix given - computing in exact mode.')
         print(f'The best offer is for {year_price} euro per year, or {year_price/12} euro per month:')
         print('Gas:')
         print(gas)
         print('Power:')
         print(power)
     else:
-        if 0.0 in std_vector:
-            print('found at least one standard deviation to be 0. Defaulting to 0.1, indicating almost no variance (nonzero required for SVD algorithm)')
-        std_vector = [v if v != 0.0 else 0.1 for v in std_vector]
-        find_minimal_function(df, mean_vector, std_vector, args.saldering, args.outage)
+        print('Covariance matrix given - computing in statistics mode.')
+        std_vector = profile['covariance_matrix'].diagonal()
+        if np.nan in std_vector or 0.0 in std_vector:
+            print('found at least one standard deviation to be 0 or unset. Defaulting to 0.1, indicating almost no variance (nonzero required for SVD algorithm matrix convergence).')
+            np.fill_diagonal(profile['covariance_matrix'], [v if v and v != 0.0 else 0.1 for v in std_vector])
+        find_minimal_function(df, mean_vector, profile['covariance_matrix'], args.saldering, args.outage)
 
 if __name__ == '__main__':
     main()
