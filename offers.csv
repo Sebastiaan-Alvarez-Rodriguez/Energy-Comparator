@@ -21,5 +21,17 @@ Pure Energie via Independer 1 jaar gas,vast,8.99,month,1.28556,,,,,,,90
 Pure Energie 1 jaar stroom+gas,vast,107.88,year,1.28556,107.88,year,0.29842,0.29389,0.06,0.06,0
 Pure Energie via Independer 1 jaar gas+stroom,vast,8.99,month,1.28556,8.99,month,0.29389,0.29842,0.06,0.06,0
 Budget Energie,flexible,5.99,month,1.17129,5.99,month,0.27012,0.27811,0.05,0.05,0
-Vattenfall 1 jaar vast,vast,71.87,year,1.279224,131.84,year,0.285802,0.332266,0.045,0.045,0
-UnitedConsumers 1 jaar,vast,142.34,year,1.32777,142.34,year,0.30601,0.36639,0.05,0.05,200
+Vattenfall 1 jaar vast stroom,vast,,,,131.84,year,0.285802,0.332266,0.045,0.045,0
+Vattenfall 1 jaar vast gas,vast,71.87,year,1.279224,,,,,,,0
+UnitedConsumers 1 jaar,vast,142.34,year,1.32777,,,,,,,0
+UnitedConsumers 1 jaar,vast,,,,142.34,year,0.30601,0.36639,0.05,0.05,0
+GreenChoice 1 jaar via gaslicht.com,vast,98.26,year,1.262,,,,,,,92.50
+Pure Energie 1 jaar via gaslicht.com,vast,107.88,year,1.2855,,,,,,,90
+Budget Energie 2 jaar via Independer,vast,6.99,month,1.25599,,,,,,,0
+GreenChoice 1 jaar via easyswitch.nl,vast,98.26,year,1.26204,,,,,,92.50
+Pure energie 1 jaar via easyswitch.nl,vast,107.88,year,1.28556,,,,,,,90
+Engie 1 jaar vast via easyswitch.nl,vast,120,year,1.26683,,,,,,50
+Delta 1 jaar vast,vast,114.29,year,1.39441,114.29,year,0.20005,0.22046,0.09,0.09,0
+Eneco 1 jaar vast gas,vast,71.88,year,1.25912,,,,,,,0
+Eneco 3 jaar vast gas,vast,71.88,year,1.26099,,,,,,0
+Eneco 1 jaar vast stroom,vast,,,,71.88,year,0.31979,0.31979,0.09,0.09,0
