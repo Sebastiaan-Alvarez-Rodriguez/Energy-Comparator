@@ -7,6 +7,8 @@ import pandas as pd
 from scipy.stats import multivariate_normal
 
 
+required_csv_names = ['name','type','gasconstant','gasconstant_unit','gasvariable','powerconstant','powerconstant_unit','powervariable_low','powervariable_high','powergen_low','powergen_high','bonus']
+
 def set_if_not_null(d, key, value):
     if value:
         d[key] = value
@@ -53,7 +55,6 @@ def normalize(df):
 
 def verify(df):
     # verifies integrity of input csv file.
-    required_csv_names = ['name','type','gasconstant','gasconstant_unit','gasvariable','powerconstant','powerconstant_unit','powervariable_low','powervariable_high','powergen_low','powergen_high','bonus']
     ok = True
     for name in required_csv_names:
         if name not in df:
@@ -70,6 +71,7 @@ def verify(df):
             print(power_vars)
             ok = False
     return ok
+
 
 def best_offer(df, mean_vector, saldering, outage):
     '''
@@ -95,7 +97,6 @@ def best_offer(df, mean_vector, saldering, outage):
     # combined contracts comparison
     combined_df = df[(~only_gas_mask) & (~only_power_mask)]
     min_combined_idx = combined_df.loc[combined_df.total.idxmin()]
-    # print(f'combined: {min_combined_idx}')
 
     # separate contracts comparisons
     only_gas_df = df[only_gas_mask]
@@ -126,7 +127,6 @@ def find_minimal_function(df, mean_vector, cov_matrix, saldering, outage, sample
         gas_dict[k] = (len(v), np.mean(v))
     for k, v in power_dict.items():
         power_dict[k] = (len(v), np.mean(v))
-
     best_gas = max(gas_dict, key=lambda x: gas_dict[x][0]) # gets the key with most occurrences (=most optimal values)
     best_power = max(power_dict, key=lambda x: power_dict[x][0])
     print('On average, the best contract is:')
@@ -145,23 +145,27 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--offers', default=str(Path.cwd() / 'offers.csv'), help='Data file containing offers.')
     parser.add_argument('--profile', default=None, help='Data file containing usage and generation data.')
-    parser.add_argument('--profile-covariance-matrix', default=None, help='Set the 5x5 covariance matrix. Relations to denote: gas, power-low, power-high, power-generation-low, power-generation-high. Of course, the diagonal entries are standard deviations and the non-diagonal entries provide pairwise covariance. should look like json: i.e. `[ [60,0,0,0,0], [0,60,0,0,0], [0,0,60,0,0], [0,0,0,60,0], [0,0,0,0,60] ]`. Use only if you know what you are doing.')
-    parser.add_argument('--profile-gas', type=float, default=None, help='Average yearly gas consumption. Takes precedence over file-based data.')
-    parser.add_argument('--profile-power-low', type=float, default=None, help='Average yearly power consumption (low tarif). Takes precedence over file-based data.')
-    parser.add_argument('--profile-power-high', type=float, default=None, help='Average yearly power consumption (high tarif). Takes precedence over file-based data.')
-    parser.add_argument('--profile-power-gen-low', type=float, default=None, help='Average yearly power generation (low tarif). Takes precedence over file-based data.')
-    parser.add_argument('--profile-power-gen-high', type=float, default=None, help='Average yearly power generation (high tarif). Takes precedence over file-based data.')
+    parser.add_argument('--covariance-matrix', default=None, help='Set the 5x5 covariance matrix. Relations to denote: gas, power-low, power-high, power-generation-low, power-generation-high. Of course, the diagonal entries are standard deviations and the non-diagonal entries provide pairwise covariance. should look like json: i.e. `[ [60,0,0,0,0], [0,60,0,0,0], [0,0,60,0,0], [0,0,0,60,0], [0,0,0,0,60] ]`. Use only if you know what you are doing.')
+    parser.add_argument('--gas', type=float, default=None, help='Average yearly gas consumption. Takes precedence over file-based data.')
+    parser.add_argument('--power-low', type=float, default=None, help='Average yearly power consumption (low tarif). Takes precedence over file-based data.')
+    parser.add_argument('--power-high', type=float, default=None, help='Average yearly power consumption (high tarif). Takes precedence over file-based data.')
+    parser.add_argument('--power-gen-low', type=float, default=None, help='Average yearly power generation (low tarif). Takes precedence over file-based data.')
+    parser.add_argument('--power-gen-high', type=float, default=None, help='Average yearly power generation (high tarif). Takes precedence over file-based data.')
     parser.add_argument('--saldering', type=float, default=1.0, help='Saldering assumption, determines how much generated energy compensates for consumed energy (factor between 0 and 1).')
     parser.add_argument('--outage', type=float, default=1.0, help='Outage assumption, describes when the sun shines but the net is satisfied, leading to no power delivery on the net (factor between 0 and 1).')
-    parser.add_argument('--extra-costs', type=float, default=0.0, help='Extra: Other costs, can be negative to denote a bonus.')
+    parser.add_argument('--extra-costs', type=float, default=0.0, help='Extra: Other costs, can be negative to denote government aid.')
+    parser.add_argument('--filter', type=str, default=None, help='Execute filter query on dataset. Example: --filter "`type==\'vast\' & name!=\'Oxxio 1 jaar\'"`. Exact syntax: https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html')
     args = parser.parse_args()
 
-    profile = get_profile(args.profile, args.profile_covariance_matrix, args.profile_gas, args.profile_power_low, args.profile_power_high, args.profile_power_gen_low, args.profile_power_gen_high)
+    profile = get_profile(args.profile, args.covariance_matrix, args.gas, args.power_low, args.power_high, args.power_gen_low, args.power_gen_high)
     df = pd.read_csv(args.offers, comment='#')
-    print(df.to_string())
     df = normalize(df)
     if not verify(df):
         return
+    if args.filter:
+        df.query(args.filter, inplace=True)
+        print('Dataframe after filtering:')
+    print(df.to_string())
     # mean_vector contains the usage/generation estimations.
     mean_vector = np.array([profile['gas'], profile['power_low'], profile['power_high'], profile['power_gen_low'], profile['power_gen_high']])
 
