@@ -33,7 +33,7 @@ def get_profile(path=None, profile_covariance_matrix=None, profile_gas=None, pro
         profile['covariance_matrix'] = np.array(json.loads(profile_covariance_matrix))
         if profile['covariance_matrix'].shape != (5,5,):
             print(f'Found a non-conforming matrix shape. Must be 5 rows, 5 columns. Found {profile["covariance_matrix"].shape[0]} rows, {profile["covariance_matrix"].shape[1]} columns.')
-        print(f'The matrix:')
+        print(f'The covariance matrix:')
         print(profile['covariance_matrix'])
     return profile
 
@@ -63,12 +63,11 @@ def verify(df):
     for idx, entry in df.iterrows():
         gas_vars = [x != 0 and not pd.isna(x) for x in [entry.iloc[2], entry.iloc[4]]]
         if any(gas_vars) and not all(gas_vars):
-            print(f'[Error] Data entry at line {idx} ("{entry["name"]}") is incorrect: Contains some, but not all of "gasconstant", "gasconstant_unit", "gasvariable".')
+            print(f'[Error] Data entry at line {idx} ("{entry["name"]}") is incorrect: Contains some, but not all of "gasconstant", "gasconstant_unit", "gasvariable". Specified: {gas_vars}')
             ok = False
         power_vars = [x != 0 and not pd.isna(x) for x in [entry.iloc[5], entry.iloc[7], entry.iloc[8], entry.iloc[9], entry.iloc[10]]]
         if any(power_vars) and not all(power_vars):
-            print(f'[Error] Data entry at line {idx} ("{entry["name"]}") is incorrect: Contains some, but not all of "powerconstant", "powerconstant_unit", "powervariable_low", "powervariable_high", "powergen_low", "powergen_high".')
-            print(power_vars)
+            print(f'[Error] Data entry at line {idx} ("{entry["name"]}") is incorrect: Contains some, but not all of "powerconstant", "powerconstant_unit", "powervariable_low", "powervariable_high", "powergen_low", "powergen_high". Specified: {power_vars}')
             ok = False
     return ok
 
