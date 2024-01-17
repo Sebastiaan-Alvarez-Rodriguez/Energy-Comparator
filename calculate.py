@@ -95,17 +95,21 @@ def best_offer(df, mean_vector, saldering, outage):
     only_power_mask = df.gasconstant.isna() & df.gasvariable.isna()
     # combined contracts comparison
     combined_df = df[(~only_gas_mask) & (~only_power_mask)]
-    min_combined_idx = combined_df.loc[combined_df.total.idxmin()]
+    min_combined_idx = combined_df.loc[combined_df.total.idxmin()] if not combined_df.empty else None
 
     # separate contracts comparisons
     only_gas_df = df[only_gas_mask]
-    min_gas_idx = only_gas_df.loc[only_gas_df.total.idxmin()]
+    min_gas_idx = only_gas_df.loc[only_gas_df.total.idxmin()] if not only_gas_df.empty else None
 
     only_power_df = df[only_power_mask]
-    min_power_idx = only_power_df.loc[only_power_df.total.idxmin()]
+    min_power_idx = only_power_df.loc[only_power_df.total.idxmin()] if not only_power_df.empty else None
     # print(f'individual gas: {min_gas_idx}')
     # print(f'individual power idx: {min_power_idx}')
-    if min_combined_idx.total <= min_power_idx.total + min_gas_idx.total:
+    if min_combined_idx is None:
+        if min_gas_idx is None or min_power_idx is None:
+            return None, None
+        return min_gas_idx, min_power_idx
+    if min_gas_idx is None or min_power_idx is None or min_combined_idx.total <= min_power_idx.total + min_gas_idx.total:
         return pd.Series([min_combined_idx['name'], min_combined_idx.type, min_combined_idx.gasconstant, min_combined_idx.gasconstant_unit, min_combined_idx.gasvariable, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, min_combined_idx.bonus / 2, min_combined_idx.calc_gas, np.nan, min_combined_idx.total / 2], index=df.columns), \
         pd.Series([min_combined_idx['name'], min_combined_idx.type, np.nan, np.nan, np.nan, min_combined_idx.powerconstant, min_combined_idx.powerconstant_unit, min_combined_idx.powervariable_low, min_combined_idx.powervariable_high, min_combined_idx.powergen_low, min_combined_idx.powergen_high, min_combined_idx.bonus / 2, np.nan, min_combined_idx.calc_power, min_combined_idx.total / 2], index=df.columns)
     return min_gas_idx, min_power_idx
@@ -120,6 +124,9 @@ def find_minimal_function(df, mean_vector, cov_matrix, saldering, outage, sample
     outputs = [linear_func(sample) for sample in inputs]
 
     for gas, power in outputs:
+        if gas is None or power is None:
+            print('[Warning] found no winner. Filtered too much data?')
+            continue
         gas_dict.setdefault(gas['name'], []).append(gas.total)
         power_dict.setdefault(power['name'], []).append(power.total)
     for k, v in gas_dict.items():
